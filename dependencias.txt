@@ -1,0 +1,33 @@
+# Inicialización base
+npm install
+
+#Tailwind CSS para estilos
+npm install nativewind react-native-reanimated@~3.17.4 react-native-safe-area-context@5.4.0
+npx tailwindcss init
+
+# Navegación (obligatorio)
+npm install @react-navigation/drawer
+npm install @react-navigation/native react-native-gesture-handler react-native-reanimated
+
+# Iconos (lo estás usando en toda la app)
+npm install @expo/vector-icons
+
+# Async Storage (para guardar datos localmente, guarda el token )
+npm install @react-native-async-storage/async-storage
+
+#Axios (para hacer peticiones HTTP)
+npm install axios
+
+#Dependencia para SecureStore (para guardar datos sensibles token)
+npm install expo-secure-store
+
+#Dependencias para Toast (notificaciones pequeñas)
+expo install react-native-root-toast
+
+#Dependencia picker
+npm install expo-image-picker 
+
+#dependencia de seleccion
+npm install @react-native-picker/picker
+
+npm install expo-linear-gradient
