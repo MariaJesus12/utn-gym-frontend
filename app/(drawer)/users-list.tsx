@@ -8,6 +8,8 @@ import {
     RefreshControl,
     TextInput,
     Image,
+    Modal,
+    Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,6 +22,7 @@ export default function UsersList() {
     const [activeTab, setActiveTab] = useState<TabType>('students');
     const [searchText, setSearchText] = useState('');
     const [refreshing, setRefreshing] = useState(false);
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
     useEffect(() => {
         loadUsers();
@@ -190,16 +193,18 @@ export default function UsersList() {
                                 <View className="flex-1">
                                     <View className="flex-row items-center mb-2">
                                         {user.foto_url ? (
-                                            <Image 
-                                                source={{ uri: user.foto_url.startsWith('http') ? user.foto_url : `data:image/jpeg;base64,${user.foto_url}` }}
-                                                className="w-12 h-12 rounded-full"
-                                                style={{ 
-                                                    resizeMode: 'cover',
-                                                    width: 48,
-                                                    height: 48,
-                                                    borderRadius: 24
-                                                }}
-                                            />
+                                            <TouchableOpacity onPress={() => setSelectedImage(user.foto_url.startsWith('http') ? user.foto_url : `data:image/jpeg;base64,${user.foto_url}`)}>
+                                                <Image 
+                                                    source={{ uri: user.foto_url.startsWith('http') ? user.foto_url : `data:image/jpeg;base64,${user.foto_url}` }}
+                                                    className="w-12 h-12 rounded-full"
+                                                    style={{ 
+                                                        resizeMode: 'cover',
+                                                        width: 48,
+                                                        height: 48,
+                                                        borderRadius: 24
+                                                    }}
+                                                />
+                                            </TouchableOpacity>
                                         ) : (
                                             <View className={`w-12 h-12 rounded-full items-center justify-center ${
                                                 activeTab === 'students' ? 'bg-cyan-100' : 'bg-emerald-100'
@@ -245,6 +250,40 @@ export default function UsersList() {
                     ))}
                 </View>
             </ScrollView>
+
+            {/* Modal para zoom de imagen */}
+            <Modal
+                visible={selectedImage !== null}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setSelectedImage(null)}
+            >
+                <Pressable 
+                    className="flex-1 bg-black/90 justify-center items-center"
+                    onPress={() => setSelectedImage(null)}
+                >
+                    <View className="w-full h-full justify-center items-center p-6">
+                        <TouchableOpacity
+                            onPress={() => setSelectedImage(null)}
+                            className="absolute top-12 right-6 bg-white/20 p-3 rounded-full z-10"
+                        >
+                            <Ionicons name="close" size={28} color="#FFF" />
+                        </TouchableOpacity>
+                        
+                        {selectedImage && (
+                            <Image
+                                source={{ uri: selectedImage }}
+                                style={{
+                                    width: '90%',
+                                    height: '70%',
+                                    borderRadius: 20,
+                                }}
+                                resizeMode="contain"
+                            />
+                        )}
+                    </View>
+                </Pressable>
+            </Modal>
         </LinearGradient>
     );
 }

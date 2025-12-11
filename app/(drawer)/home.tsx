@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Dimensions, ActivityIndicator, Image, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, Dimensions, ActivityIndicator, Image, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -23,6 +23,7 @@ export default function Home() {
     const [assistanceToday, setAssistanceToday] = useState(0);
     const [usersToday, setUsersToday] = useState<UserToday[]>([]);
     const [loading, setLoading] = useState(true);
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
     useEffect(() => {
         loadStats();
@@ -178,8 +179,16 @@ export default function Home() {
                                         className="bg-white/60 rounded-xl p-3 flex-row items-center border border-white/60"
                                     >
                                         {/* Foto */}
-                                        <View className="w-14 h-14 rounded-full overflow-hidden bg-gray-200 mr-3">
-                                            {user.foto_url ? (
+                                        {user.foto_url ? (
+                                            <TouchableOpacity 
+                                                onPress={() => {
+                                                    const imageUrl = user.foto_url?.startsWith('http') 
+                                                        ? user.foto_url 
+                                                        : `data:image/jpeg;base64,${user.foto_url}`;
+                                                    setSelectedImage(imageUrl);
+                                                }}
+                                                className="w-14 h-14 rounded-full overflow-hidden bg-gray-200 mr-3"
+                                            >
                                                 <Image 
                                                     source={{ 
                                                         uri: user.foto_url.startsWith('http') 
@@ -189,12 +198,14 @@ export default function Home() {
                                                     className="w-full h-full"
                                                     resizeMode="cover"
                                                 />
-                                            ) : (
+                                            </TouchableOpacity>
+                                        ) : (
+                                            <View className="w-14 h-14 rounded-full overflow-hidden bg-gray-200 mr-3">
                                                 <View className="w-full h-full items-center justify-center bg-cyan-100">
                                                     <Ionicons name="person" size={28} color="#0891b2" />
                                                 </View>
-                                            )}
-                                        </View>
+                                            </View>
+                                        )}
 
                                         {/* Info */}
                                         <View className="flex-1">
@@ -295,6 +306,40 @@ export default function Home() {
                     </View>
                 </View>
             </ScrollView>
+
+            {/* Modal para zoom de imagen */}
+            <Modal
+                visible={selectedImage !== null}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setSelectedImage(null)}
+            >
+                <Pressable 
+                    className="flex-1 bg-black/90 justify-center items-center"
+                    onPress={() => setSelectedImage(null)}
+                >
+                    <View className="w-full h-full justify-center items-center p-6">
+                        <TouchableOpacity
+                            onPress={() => setSelectedImage(null)}
+                            className="absolute top-12 right-6 bg-white/20 p-3 rounded-full z-10"
+                        >
+                            <Ionicons name="close" size={28} color="#FFF" />
+                        </TouchableOpacity>
+                        
+                        {selectedImage && (
+                            <Image
+                                source={{ uri: selectedImage }}
+                                style={{
+                                    width: '90%',
+                                    height: '70%',
+                                    borderRadius: 20,
+                                }}
+                                resizeMode="contain"
+                            />
+                        )}
+                    </View>
+                </Pressable>
+            </Modal>
         </LinearGradient>
     );
 }
