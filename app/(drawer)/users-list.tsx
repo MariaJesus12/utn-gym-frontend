@@ -7,6 +7,7 @@ import {
     ActivityIndicator,
     RefreshControl,
     TextInput,
+    Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -188,15 +189,28 @@ export default function UsersList() {
                             <View className="flex-row items-start justify-between">
                                 <View className="flex-1">
                                     <View className="flex-row items-center mb-2">
-                                        <View className={`w-10 h-10 rounded-full items-center justify-center ${
-                                            activeTab === 'students' ? 'bg-cyan-100' : 'bg-emerald-100'
-                                        }`}>
-                                            <Ionicons 
-                                                name={activeTab === 'students' ? 'school' : 'briefcase'} 
-                                                size={20} 
-                                                color={activeTab === 'students' ? '#0891b2' : '#10b981'} 
+                                        {user.foto_url ? (
+                                            <Image 
+                                                source={{ uri: user.foto_url.startsWith('http') ? user.foto_url : `data:image/jpeg;base64,${user.foto_url}` }}
+                                                className="w-12 h-12 rounded-full"
+                                                style={{ 
+                                                    resizeMode: 'cover',
+                                                    width: 48,
+                                                    height: 48,
+                                                    borderRadius: 24
+                                                }}
                                             />
-                                        </View>
+                                        ) : (
+                                            <View className={`w-12 h-12 rounded-full items-center justify-center ${
+                                                activeTab === 'students' ? 'bg-cyan-100' : 'bg-emerald-100'
+                                            }`}>
+                                                <Ionicons 
+                                                    name={activeTab === 'students' ? 'school' : 'briefcase'} 
+                                                    size={20} 
+                                                    color={activeTab === 'students' ? '#0891b2' : '#10b981'} 
+                                                />
+                                            </View>
+                                        )}
                                         <View className="ml-3 flex-1">
                                             <Text className="text-gray-800 text-lg font-bold">
                                                 {user.nombre} {user.apellido1} {user.apellido2}

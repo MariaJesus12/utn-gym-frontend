@@ -16,7 +16,7 @@ export const useUsers = () => {
     const [users, setUsers] = useState<User[]>([]);
 
     // Registrar estudiante
-    const registerStudent = async (studentData: Student) => {
+    const registerStudent = async (studentData: FormData | Student) => {
         setLoading(true);
         setError('');
 
@@ -38,7 +38,7 @@ export const useUsers = () => {
     };
 
     // Registrar funcionario
-    const registerFuncionario = async (funcionarioData: Funcionario) => {
+    const registerFuncionario = async (funcionarioData: FormData | Funcionario) => {
         setLoading(true);
         setError('');
 

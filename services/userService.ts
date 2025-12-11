@@ -4,17 +4,19 @@ import api from "../api/axiosConfig";
 export interface Student {
     nombre: string;
     apellido1: string;
-    apellido2: string;
+    apellido2?: string;
     dni: string;
     id_carrera: number;
+    foto_url?: string;
 }
 
 export interface Funcionario {
     nombre: string;
     apellido1: string;
-    apellido2: string;
+    apellido2?: string;
     dni: string;
     id_puesto: number;
+    foto_url?: string;
 }
 
 export interface User {
@@ -26,15 +28,20 @@ export interface User {
     dni: string;
     tipo: 'estudiante' | 'funcionario';
     detalle: string;
+    foto_url?: string;
     createdAt?: string;
 }
 
 // Registrar estudiante
-export const registerStudentService = async (studentData: Student) => {
+export const registerStudentService = async (studentData: FormData | Student) => {
     try {
-        console.log('📝 Registrando estudiante:', studentData);
+        console.log('📝 Registrando estudiante (SERVICE) con FormData:', studentData instanceof FormData);
         
-        const response = await api.post('/users/student', studentData);
+        const response = await api.post('/users/student', studentData, {
+            headers: studentData instanceof FormData ? {
+                'Content-Type': 'multipart/form-data',
+            } : undefined
+        });
         
         console.log('✅ Estudiante registrado:', response.data);
         return {
@@ -53,11 +60,15 @@ export const registerStudentService = async (studentData: Student) => {
 };
 
 // Registrar funcionario
-export const registerFuncionarioService = async (funcionarioData: Funcionario) => {
+export const registerFuncionarioService = async (funcionarioData: FormData | Funcionario) => {
     try {
-        console.log('📝 Registrando funcionario:', funcionarioData);
+        console.log('📝 Registrando funcionario (SERVICE) con FormData:', funcionarioData instanceof FormData);
         
-        const response = await api.post('/users/funcionario', funcionarioData);
+        const response = await api.post('/users/funcionario', funcionarioData, {
+            headers: funcionarioData instanceof FormData ? {
+                'Content-Type': 'multipart/form-data',
+            } : undefined
+        });
         
         console.log('✅ Funcionario registrado:', response.data);
         return {
@@ -71,6 +82,32 @@ export const registerFuncionarioService = async (funcionarioData: Funcionario) =
         return {
             success: false,
             error: error.response?.data?.message || 'Error al registrar funcionario'
+        };
+    }
+};
+
+// Obtener usuarios con asistencia hoy
+export const getAssistanceTodayService = async () => {
+    try {
+        const response = await api.get('/users/assistance-today');
+        
+        const users = Array.isArray(response.data) 
+            ? response.data 
+            : response.data?.data || [];
+        
+        return {
+            success: true,
+            data: users,
+            total: users.length
+        };
+    } catch (error: any) {
+        console.error('❌ Error al obtener asistencia de hoy:', error.response?.data || error.message);
+        
+        return {
+            success: false,
+            error: error.response?.data?.message || 'Error al obtener asistencia de hoy',
+            data: [],
+            total: 0
         };
     }
 };

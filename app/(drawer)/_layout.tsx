@@ -114,6 +114,16 @@ export default function Layout() {
                     }}
                 />
                 <Drawer.Screen
+                    name="register-access"
+                    options={{
+                        drawerLabel: 'Registrar Acceso',
+                        title: 'Registrar Acceso',
+                        drawerIcon: ({ color, size }) => (
+                            <Ionicons name="finger-print" size={size} color={color} />
+                        ),
+                    }}
+                />
+                <Drawer.Screen
                     name="map"
                     options={{
                         drawerLabel: 'Mapa',

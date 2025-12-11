@@ -9,6 +9,7 @@ import {
     Platform,
     ActivityIndicator,
     Alert,
+    Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,6 +17,7 @@ import { useUsers } from '../../hooks/useUsers';
 import { useRouter } from 'expo-router';
 import { getPuestosService, Puesto } from '../../services/puestoService';
 import { Picker } from '@react-native-picker/picker';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function RegisterAdmin() {
     const router = useRouter();
@@ -23,6 +25,8 @@ export default function RegisterAdmin() {
 
     const [puestos, setPuestos] = useState<Puesto[]>([]);
     const [loadingPuestos, setLoadingPuestos] = useState(true);
+    const [photoUri, setPhotoUri] = useState<string>('');
+    const [photoBase64, setPhotoBase64] = useState<string>('');
 
     const [formData, setFormData] = useState({
         nombre: '',
@@ -57,14 +61,69 @@ export default function RegisterAdmin() {
         setValidationError('');
     };
 
+    const pickImage = async () => {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        
+        if (status !== 'granted') {
+            Alert.alert('Permisos requeridos', 'Se necesita acceso a la galería para seleccionar una foto');
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+            base64: true,
+        });
+
+        if (!result.canceled && result.assets[0]) {
+            const uri = result.assets[0].uri;
+            const base64 = result.assets[0].base64;
+            
+            console.log('📸 URI de la imagen:', uri);
+            console.log('📦 Base64 obtenido:', base64 ? 'Sí (longitud: ' + base64.length + ')' : 'No');
+            
+            setPhotoUri(uri);
+            
+            if (base64) {
+                // Limpiar el base64 por si tiene prefijos
+                const cleanBase64 = base64.replace(/^data:image\/[a-z]+;base64,/, '');
+                setPhotoBase64(cleanBase64);
+                console.log('✅ Base64 limpio guardado:', cleanBase64.substring(0, 50) + '...');
+            } else {
+                console.error('❌ No se obtuvo base64');
+                Alert.alert('Error', 'No se pudo obtener la imagen en formato base64');
+            }
+        }
+    };
+
     const handleSubmit = async () => {
         // Validación
-        if (!formData.nombre || !formData.apellido1 || !formData.apellido2 || !formData.dni || !formData.id_puesto) {
+        if (!formData.nombre || !formData.apellido1 || !formData.dni || !formData.id_puesto) {
             setValidationError('Por favor completa todos los campos obligatorios');
             return;
         }
 
-        const success = await registerFuncionario(formData);
+        // Crear FormData para enviar con foto
+        const formDataToSend = new FormData();
+        formDataToSend.append('nombre', formData.nombre);
+        formDataToSend.append('apellido1', formData.apellido1);
+        if (formData.apellido2) formDataToSend.append('apellido2', formData.apellido2);
+        formDataToSend.append('dni', formData.dni);
+        formDataToSend.append('id_puesto', formData.id_puesto.toString());
+        
+        // Si hay foto, agregarla como archivo
+        if (photoUri && photoBase64) {
+            const response = await fetch(`data:image/jpeg;base64,${photoBase64}`);
+            const blob = await response.blob();
+            formDataToSend.append('photo', blob, 'photo.jpg');
+            console.log('📸 Foto agregada al FormData');
+        }
+
+        console.log('📤 Enviando datos del funcionario con FormData');
+
+        const success = await registerFuncionario(formDataToSend);
 
         if (success) {
             Alert.alert(
@@ -82,6 +141,8 @@ export default function RegisterAdmin() {
                                 dni: '',
                                 id_puesto: 0,
                             });
+                            setPhotoUri('');
+                            setPhotoBase64('');
                             router.back();
                         },
                     },
@@ -160,7 +221,7 @@ export default function RegisterAdmin() {
                             {/* Segundo Apellido */}
                             <View className="mb-4">
                                 <Text className="text-gray-700 text-sm font-semibold mb-2 ml-1">
-                                    Segundo Apellido *
+                                    Segundo Apellido
                                 </Text>
                                 <View className="flex-row items-center bg-white/60 backdrop-blur-sm rounded-xl px-4 py-4 border border-white/80">
                                     <Ionicons name="person-outline" size={20} color="#0891b2" />
@@ -190,6 +251,37 @@ export default function RegisterAdmin() {
                                         keyboardType="numeric"
                                     />
                                 </View>
+                            </View>
+
+                            {/* Foto */}
+                            <View className="mb-4">
+                                <Text className="text-gray-700 text-sm font-semibold mb-2 ml-1">
+                                    Foto
+                                </Text>
+                                <TouchableOpacity 
+                                    onPress={pickImage}
+                                    className="bg-white/60 backdrop-blur-sm rounded-xl border border-white/80 overflow-hidden"
+                                >
+                                    {photoUri ? (
+                                        <View className="relative">
+                                            <Image 
+                                                source={{ uri: photoUri }} 
+                                                className="w-full h-48"
+                                                style={{ resizeMode: 'cover' }}
+                                            />
+                                            <View className="absolute top-2 right-2 bg-emerald-500 rounded-full p-2">
+                                                <Ionicons name="create" size={20} color="#FFF" />
+                                            </View>
+                                        </View>
+                                    ) : (
+                                        <View className="py-8 items-center">
+                                            <Ionicons name="camera-outline" size={48} color="#10b981" />
+                                            <Text className="text-gray-600 mt-3 text-sm">
+                                                Toca para seleccionar una foto
+                                            </Text>
+                                        </View>
+                                    )}
+                                </TouchableOpacity>
                             </View>
 
                             {/* Puesto */}
