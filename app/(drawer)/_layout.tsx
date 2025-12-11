@@ -76,9 +76,41 @@ export default function Layout() {
                 <Drawer.Screen
                     name="home"
                     options={{
-                        drawerLabel: 'Home',
-                        title: 'home',
-                        drawerItemStyle: { display: 'none' }
+                        drawerLabel: 'Inicio',
+                        title: 'Inicio',
+                        drawerIcon: ({ color, size }) => (
+                            <Ionicons name="home-outline" size={size} color={color} />
+                        ),
+                    }}
+                />
+                <Drawer.Screen
+                    name="register-student"
+                    options={{
+                        drawerLabel: 'Registrar Estudiante',
+                        title: 'Registrar Estudiante',
+                        drawerIcon: ({ color, size }) => (
+                            <Ionicons name="school-outline" size={size} color={color} />
+                        ),
+                    }}
+                />
+                <Drawer.Screen
+                    name="register-admin"
+                    options={{
+                        drawerLabel: 'Registrar Administrativo',
+                        title: 'Registrar Administrativo',
+                        drawerIcon: ({ color, size }) => (
+                            <Ionicons name="briefcase-outline" size={size} color={color} />
+                        ),
+                    }}
+                />
+                <Drawer.Screen
+                    name="users-list"
+                    options={{
+                        drawerLabel: 'Lista de Usuarios',
+                        title: 'Lista de Usuarios',
+                        drawerIcon: ({ color, size }) => (
+                            <Ionicons name="people-outline" size={size} color={color} />
+                        ),
                     }}
                 />
                 <Drawer.Screen
