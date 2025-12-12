@@ -112,6 +112,32 @@ export const getAssistanceTodayService = async () => {
     }
 };
 
+// Obtener accesos del gimnasio hoy (gym-even)
+export const getGymEvenAttendanceService = async () => {
+    try {
+        const response = await api.get('/users/attendance/gym-even');
+        
+        const users = Array.isArray(response.data) 
+            ? response.data 
+            : response.data?.data || [];
+        
+        return {
+            success: true,
+            data: users,
+            total: users.length
+        };
+    } catch (error: any) {
+        console.error('❌ Error al obtener accesos gym-even:', error.response?.data || error.message);
+        
+        return {
+            success: false,
+            error: error.response?.data?.message || 'Error al obtener accesos gym-even',
+            data: [],
+            total: 0
+        };
+    }
+};
+
 // Obtener todos los usuarios sin paginación (solo para contar)
 export const getAllUsersService = async () => {
     try {

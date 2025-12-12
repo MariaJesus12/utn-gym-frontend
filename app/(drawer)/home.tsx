@@ -3,7 +3,8 @@ import { View, Text, ScrollView, Dimensions, ActivityIndicator, Image, Touchable
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { getAllUsersService, getAssistanceTodayService } from '../../services/userService';
+import { getAllUsersService, getGymEvenAttendanceService, getUsersService } from '../../services/userService';
+import { useWebSocket } from '../../hooks/useWebSocket';
 
 const { width } = Dimensions.get('window');
 
@@ -24,6 +25,47 @@ export default function Home() {
     const [usersToday, setUsersToday] = useState<UserToday[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [gymCount, setGymCount] = useState(0); // Contador del Raspberry Pi
+    const [raspberryData, setRaspberryData] = useState<any>(null); // Dato raw del Raspberry Pi
+
+    // WebSocket para Raspberry Pi
+    const { isConnected, lastMessage } = useWebSocket({
+        url: 'ws://10.50.41.65:8765',
+        onMessage: (data) => {
+            console.log('📡 Datos recibidos del Raspberry Pi:', data);
+            setRaspberryData(data); // Guardar dato completo del Raspberry
+            
+            // También mantener la lógica de gymCount por si acaso
+            if (typeof data === 'number') {
+                setGymCount(data);
+            } else if (data?.count !== undefined) {
+                setGymCount(data.count);
+            } else if (data?.users !== undefined) {
+                setGymCount(data.users);
+            } else if (data?.total !== undefined) {
+                setGymCount(data.total);
+            }
+        },
+        onOpen: () => {
+            console.log('✅ Conectado al Raspberry Pi en ws://10.50.41.65:8765');
+        },
+        onError: (error) => {
+            console.error('❌ Error en conexión con Raspberry Pi:', error);
+        },
+        onClose: () => {
+            console.log('🔌 Desconectado del Raspberry Pi');
+        },
+        autoReconnect: true,
+        reconnectInterval: 5000,
+    });
+
+    // Recargar stats cuando llegue un mensaje del WebSocket
+    useEffect(() => {
+        if (lastMessage !== null) {
+            console.log('🔄 Recargando stats por mensaje WebSocket');
+            loadStats();
+        }
+    }, [lastMessage]);
 
     useEffect(() => {
         loadStats();
@@ -32,10 +74,11 @@ export default function Home() {
     const loadStats = async () => {
         setLoading(true);
         
-        // Cargar usuarios totales y asistencia de hoy en paralelo
-        const [usersResult, assistanceResult] = await Promise.all([
+        // Cargar usuarios totales, accesos gym-even y usuarios paginados en paralelo
+        const [usersResult, assistanceResult, allUsersResult] = await Promise.all([
             getAllUsersService(),
-            getAssistanceTodayService()
+            getGymEvenAttendanceService(),
+            getUsersService(undefined, 1, 500) // Obtener todos los usuarios con sus fotos
         ]);
         
         if (usersResult.success) {
@@ -44,9 +87,29 @@ export default function Home() {
         
         if (assistanceResult.success) {
             setAssistanceToday(assistanceResult.total);
-            // Los usuarios que accedieron hoy vienen en assistanceResult.data
+            
+            // Mostrar SOLO los usuarios que accedieron hoy, enriqueciendo con fotos si están disponibles
             if (assistanceResult.data) {
-                setUsersToday(assistanceResult.data);
+                console.log('📋 Datos de asistencia hoy:', assistanceResult.data);
+                
+                let usersToShow = assistanceResult.data;
+                
+                // Si tenemos datos completos de usuarios, enriquecer con fotos
+                if (allUsersResult.success && allUsersResult.data) {
+                    console.log('📊 Total usuarios en allUsers:', allUsersResult.data.length);
+                    
+                    usersToShow = assistanceResult.data.map((todayUser: any) => {
+                        // Buscar datos completos del usuario (con foto)
+                        const fullUserData = allUsersResult.data.find((u: any) => u.dni === todayUser.dni);
+                        
+                        // Si encontramos datos completos, usar esos; si no, usar los datos básicos de hoy
+                        return fullUserData || todayUser;
+                    });
+                }
+                
+                console.log('👥 Usuarios de hoy a mostrar:', usersToShow.length);
+                console.log('📋 Usuarios de hoy:', usersToShow);
+                setUsersToday(usersToShow);
             }
         }
         
@@ -134,13 +197,11 @@ export default function Home() {
 
                         <View className="flex-1 bg-emerald-500/80 backdrop-blur-lg rounded-2xl p-4 border border-white/50">
                             <Ionicons name="fitness" size={28} color="#FFF" />
-                            {loading ? (
-                                <ActivityIndicator color="#FFF" size="small" style={{ marginTop: 8 }} />
-                            ) : (
-                                <Text className="text-white text-2xl font-bold mt-2">
-                                    {assistanceToday}
-                                </Text>
-                            )}
+                            <Text className="text-white text-2xl font-bold mt-2">
+                                {typeof raspberryData?.contador === 'number'
+                                    ? raspberryData.contador
+                                    : gymCount}
+                            </Text>
                             <Text className="text-emerald-50 text-xs">
                                 En el Gimnasio
                             </Text>
@@ -151,7 +212,7 @@ export default function Home() {
                     <View className="bg-white/60 backdrop-blur-sm rounded-2xl p-5 border border-white/80 mb-6">
                         <View className="flex-row items-center justify-between mb-4">
                             <Text className="text-gray-800 text-lg font-bold">
-                                Usuarios de Hoy
+                                Usuarios Activos
                             </Text>
                             <View className="bg-cyan-500/20 rounded-full px-3 py-1">
                                 <Text className="text-cyan-700 font-semibold text-xs">
