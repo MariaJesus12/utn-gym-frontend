@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { getAllUsersService, getGymEvenAttendanceService, getUsersService } from '../../services/userService';
+import api from '../../api/axiosConfig';
 import { useWebSocket } from '../../hooks/useWebSocket';
 
 const { width } = Dimensions.get('window');
@@ -27,6 +28,14 @@ export default function Home() {
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [gymCount, setGymCount] = useState(0); // Contador del Raspberry Pi
     const [raspberryData, setRaspberryData] = useState<any>(null); // Dato raw del Raspberry Pi
+    const [weeklyData, setWeeklyData] = useState([
+        { day: 'Lunes', count: 0 },
+        { day: 'Martes', count: 0 },
+        { day: 'Miércoles', count: 0 },
+        { day: 'Jueves', count: 0 },
+        { day: 'Viernes', count: 0 },
+        { day: 'Sábado', count: 0 },
+    ]);
 
     // WebSocket para Raspberry Pi
     const { isConnected, lastMessage } = useWebSocket({
@@ -73,59 +82,79 @@ export default function Home() {
 
     const loadStats = async () => {
         setLoading(true);
-        
         // Cargar usuarios totales, accesos gym-even y usuarios paginados en paralelo
         const [usersResult, assistanceResult, allUsersResult] = await Promise.all([
             getAllUsersService(),
             getGymEvenAttendanceService(),
-            getUsersService(undefined, 1, 500) // Obtener todos los usuarios con sus fotos
+            getUsersService(undefined, 1, 500)
         ]);
-        
         if (usersResult.success) {
             setTotalUsers(usersResult.total);
         }
-        
         if (assistanceResult.success) {
             setAssistanceToday(assistanceResult.total);
-            
             // Mostrar SOLO los usuarios que accedieron hoy, enriqueciendo con fotos si están disponibles
             if (assistanceResult.data) {
-                console.log('📋 Datos de asistencia hoy:', assistanceResult.data);
-                
                 let usersToShow = assistanceResult.data;
-                
-                // Si tenemos datos completos de usuarios, enriquecer con fotos
                 if (allUsersResult.success && allUsersResult.data) {
-                    console.log('📊 Total usuarios en allUsers:', allUsersResult.data.length);
-                    
                     usersToShow = assistanceResult.data.map((todayUser: any) => {
-                        // Buscar datos completos del usuario (con foto)
                         const fullUserData = allUsersResult.data.find((u: any) => u.dni === todayUser.dni);
-                        
-                        // Si encontramos datos completos, usar esos; si no, usar los datos básicos de hoy
                         return fullUserData || todayUser;
                     });
                 }
-                
-                console.log('👥 Usuarios de hoy a mostrar:', usersToShow.length);
-                console.log('📋 Usuarios de hoy:', usersToShow);
                 setUsersToday(usersToShow);
             }
         }
-        
+        // Consultar la API día por día
+        const dias = [
+            'Lunes',
+            'Martes',
+            'Miércoles',
+            'Jueves',
+            'Viernes',
+            'Sábado',
+        ];
+        // Obtener el rango de la semana para filtrar días futuros
+        let weekRange = null;
+        try {
+            const res = await api.get(`/users/attendance/weekly?day=Lunes&limit=1`);
+            weekRange = res.data?.weekRange;
+        } catch {}
+
+        // Obtener la fecha de hoy para filtrar días futuros
+        const today = new Date();
+        // weekRange: { lunes: '2025-12-08', sabado: '2025-12-13' }
+        const diasConFecha = dias.map((dia, idx) => {
+            if (!weekRange) return { dia, fecha: null };
+            // Mapear índice a fecha
+            const start = weekRange.lunes;
+            if (!start) return { dia, fecha: null };
+            const fecha = new Date(start);
+            fecha.setDate(fecha.getDate() + idx);
+            return { dia, fecha: fecha.toISOString().slice(0, 10) };
+        });
+
+        const results = await Promise.all(
+            diasConFecha.map(async ({ dia, fecha }) => {
+                // Si la fecha es futura, no consultar ni mostrar datos
+                if (fecha && fecha > today.toISOString().slice(0, 10)) {
+                    return { day: dia, count: 0 };
+                }
+                try {
+                    const res = await api.get(`/users/attendance/weekly?day=${encodeURIComponent(dia)}&limit=1`);
+                    console.log(`Respuesta para ${dia}:`, res.data);
+                    // Usar el totalCount de la paginación si existe
+                    const count = res.data?.pagination?.totalCount ?? (Array.isArray(res.data?.data) ? res.data.data.length : 0);
+                    return { day: dia, count };
+                } catch (err) {
+                    console.error(`Error consultando ${dia}:`, err);
+                    return { day: dia, count: 0 };
+                }
+            })
+        );
+        setWeeklyData(results);
         setLoading(false);
     };
-
-    // Datos de ejemplo para la gráfica
-    const weeklyData = [
-        { day: 'Lun', count: 42 },
-        { day: 'Mar', count: 38 },
-        { day: 'Mié', count: 45 },
-        { day: 'Jue', count: 50 },
-        { day: 'Vie', count: 55 },
-        { day: 'Sáb', count: 48 },
-        { day: 'Dom', count: 30 },
-    ];
 
     const maxCount = Math.max(...weeklyData.map(d => d.count));
 
@@ -147,22 +176,15 @@ export default function Home() {
                             </Text>
                         </View>
                         
-                        {/* Botón Registrar Acceso */}
-                        <TouchableOpacity
-                            onPress={() => router.push('/(drawer)/register-access')}
-                            activeOpacity={0.8}
-                            className="rounded-2xl shadow-lg overflow-hidden"
-                        >
-                            <LinearGradient
-                                colors={['#06b6d4', '#14b8a6']}
-                                className="px-4 py-3 flex-row items-center"
-                            >
-                                <Ionicons name="finger-print" size={24} color="#FFF" />
-                                <Text className="text-white text-sm font-bold ml-2">
-                                    Registrar{'\n'}Acceso
+                        {/* Notificación de escaneo */}
+                        {raspberryData?.dni && (
+                            <View className="flex-row items-center bg-emerald-100 border border-emerald-300 rounded-xl px-4 py-2 shadow-lg">
+                                <Ionicons name="barcode-outline" size={24} color="#059669" />
+                                <Text className="ml-2 text-emerald-800 font-semibold">
+                                    Nuevo escaneo: DNI {raspberryData.dni}
                                 </Text>
-                            </LinearGradient>
-                        </TouchableOpacity>
+                            </View>
+                        )}
                     </View>
 
                     {/* Stats Cards - 3 cards en una fila */}
@@ -349,21 +371,7 @@ export default function Home() {
                             })}
                         </View>
 
-                        {/* Estadística adicional */}
-                        <View className="flex-row justify-between mt-6 pt-4 border-t border-gray-200">
-                            <View>
-                                <Text className="text-gray-500 text-xs">Total Semanal</Text>
-                                <Text className="text-gray-800 text-xl font-bold">
-                                    {weeklyData.reduce((acc, curr) => acc + curr.count, 0)}
-                                </Text>
-                            </View>
-                            <View>
-                                <Text className="text-gray-500 text-xs">Promedio Diario</Text>
-                                <Text className="text-gray-800 text-xl font-bold">
-                                    {Math.round(weeklyData.reduce((acc, curr) => acc + curr.count, 0) / weeklyData.length)}
-                                </Text>
-                            </View>
-                        </View>
+                        {/* ...se eliminó la sección de Total Semanal... */}
                     </View>
                 </View>
             </ScrollView>

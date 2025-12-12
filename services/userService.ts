@@ -1,3 +1,20 @@
+// Obtener accesos semanales
+export const getWeeklyAttendanceService = async () => {
+    try {
+        const response = await api.get('/users/attendance/weekly');
+        return {
+            success: true,
+            data: response.data
+        };
+    } catch (error: any) {
+        console.error('❌ Error al obtener accesos semanales:', error.response?.data || error.message);
+        return {
+            success: false,
+            error: error.response?.data?.message || 'Error al obtener accesos semanales',
+            data: {}
+        };
+    }
+};
 import api from "../api/axiosConfig";
 
 // Tipos actualizados según la API
